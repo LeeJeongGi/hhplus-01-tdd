@@ -1,12 +1,16 @@
 package io.hhplus.tdd.point
 
+import io.hhplus.tdd.point.dto.PointHistoryResponse
+import io.hhplus.tdd.point.dto.UserPointResponse
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/point")
-class PointController {
+class PointController(
+    val pointService: PointService
+) {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
 
     /**
@@ -15,8 +19,8 @@ class PointController {
     @GetMapping("{id}")
     fun point(
         @PathVariable id: Long,
-    ): UserPoint {
-        return UserPoint(0, 0, 0)
+    ): UserPointResponse {
+        return pointService.getUserPoint(id)
     }
 
     /**
@@ -25,8 +29,8 @@ class PointController {
     @GetMapping("{id}/histories")
     fun history(
         @PathVariable id: Long,
-    ): List<PointHistory> {
-        return emptyList()
+    ): List<PointHistoryResponse> {
+        return pointService.getUserPointHistory(id)
     }
 
     /**
@@ -36,8 +40,8 @@ class PointController {
     fun charge(
         @PathVariable id: Long,
         @RequestBody amount: Long,
-    ): UserPoint {
-        return UserPoint(0, 0, 0)
+    ): UserPointResponse {
+        return pointService.savePoint(id, amount)
     }
 
     /**
@@ -47,7 +51,7 @@ class PointController {
     fun use(
         @PathVariable id: Long,
         @RequestBody amount: Long,
-    ): UserPoint {
-        return UserPoint(0, 0, 0)
+    ): UserPointResponse {
+        return pointService.usePoint(id, amount)
     }
 }
