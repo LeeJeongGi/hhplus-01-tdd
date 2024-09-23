@@ -12,18 +12,18 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 
 @SpringBootTest
-class PointServiceTest {
+class PointServiceImplTest {
 
     private lateinit var pointHistoryTable: PointHistoryTable
     private lateinit var userPointTable: UserPointTable
-    private lateinit var pointService: PointService
+    private lateinit var pointServiceImpl: PointServiceImpl
 
     @BeforeEach
     fun setUp() {
         userPointTable = UserPointTable()
         pointHistoryTable = PointHistoryTable()
 
-        pointService = PointService(pointHistoryTable, userPointTable)
+        pointServiceImpl = PointServiceImpl(pointHistoryTable, userPointTable)
     }
 
     @Test
@@ -33,7 +33,7 @@ class PointServiceTest {
         userPointTable.insertOrUpdate(1L, 300L)
 
         // when
-        val userPoint = pointService.getUserPoint(1L)
+        val userPoint = pointServiceImpl.getUserPoint(1L)
 
         // then
         assertThat(userPoint).isNotNull
@@ -45,7 +45,7 @@ class PointServiceTest {
     @DisplayName("저장이 아직 안된 유저의 포인트를 조회")
     fun getDoNotSaveUserPointTest() {
         // when
-        val userPoint = pointService.getUserPoint(1L)
+        val userPoint = pointServiceImpl.getUserPoint(1L)
 
         // then
         assertThat(userPoint).isNotNull
@@ -62,7 +62,7 @@ class PointServiceTest {
         val history3 = pointHistoryTable.insert(2L, 500L, TransactionType.USE, System.currentTimeMillis())
 
         // when
-        val userPointHistory = pointService.getUserPointHistory(2L)
+        val userPointHistory = pointServiceImpl.getUserPointHistory(2L)
 
         // then
         assertThat(userPointHistory).hasSize(3)
@@ -88,7 +88,7 @@ class PointServiceTest {
         val savePoint = 400L
 
         // when
-        val saveUserPoint = pointService.savePoint(id, amount = savePoint)
+        val saveUserPoint = pointServiceImpl.savePoint(id, amount = savePoint)
 
         // then
         assertThat(saveUserPoint.id).isEqualTo(id)
@@ -101,10 +101,10 @@ class PointServiceTest {
         // given
         val id = 1L
         val savePoint = 400L
-        val saveUserPoint = pointService.savePoint(id, amount = savePoint)
+        val saveUserPoint = pointServiceImpl.savePoint(id, amount = savePoint)
 
         // when
-        val curUserPoint = pointService.savePoint(saveUserPoint.id, amount = saveUserPoint.point + 100L)
+        val curUserPoint = pointServiceImpl.savePoint(saveUserPoint.id, amount = saveUserPoint.point + 100L)
 
         // then
         assertThat(curUserPoint.id).isEqualTo(id)
@@ -119,7 +119,7 @@ class PointServiceTest {
 
         // when & then
         val message = assertThrows<IllegalArgumentException> {
-            pointService.usePoint(1L, 1000L)
+            pointServiceImpl.usePoint(1L, 1000L)
         }.message
 
         assertThat(message).isEqualTo("사용할 수 있는 포인트가 부족합니다. 현재 포인트: 500, 요청한 포인트: 1000")
@@ -138,8 +138,8 @@ class PointServiceTest {
         repeat(threadCount) { i ->
             executor.execute {
                 try {
-                    pointService.savePoint(3L, 1000L)
-                    pointService.usePoint(3L, 500L)
+                    pointServiceImpl.savePoint(3L, 1000L)
+                    pointServiceImpl.usePoint(3L, 500L)
                 } finally {
                     latch.countDown()
                 }
@@ -151,7 +151,7 @@ class PointServiceTest {
         // then
         assertThat(pointHistoryTable.selectAllByUserId(3L).size).isEqualTo(threadCount * 2)
 
-        val finalPoint = pointService.getUserPoint(3L)
+        val finalPoint = pointServiceImpl.getUserPoint(3L)
         assertThat(finalPoint.point).isEqualTo(1000L)
     }
 }
