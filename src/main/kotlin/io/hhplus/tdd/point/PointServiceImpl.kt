@@ -19,7 +19,6 @@ class PointServiceImpl(
 
     override fun getUserPointHistory(id: Long): List<PointHistoryResponse> {
         val userPointHistory = pointHistoryTable.selectAllByUserId(id)
-        userPointHistory.map { it.convertDto() }
         return userPointHistory.map { it.convertDto() }
     }
 
