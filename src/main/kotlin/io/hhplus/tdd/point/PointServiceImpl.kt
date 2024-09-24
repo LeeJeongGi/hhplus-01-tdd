@@ -3,6 +3,7 @@ package io.hhplus.tdd.point
 import io.hhplus.tdd.database.PointHistoryTable
 import io.hhplus.tdd.database.UserPointTable
 import io.hhplus.tdd.point.dto.PointHistoryResponse
+import io.hhplus.tdd.point.dto.PointRequest
 import io.hhplus.tdd.point.dto.UserPointResponse
 import org.springframework.stereotype.Service
 
@@ -23,24 +24,25 @@ class PointServiceImpl(
     }
 
     @Synchronized
-    override fun savePoint(id: Long, amount: Long): UserPointResponse {
+    override fun savePoint(pointRequest: PointRequest): UserPointResponse {
+        pointRequest.checkPointValidity(pointRequest.amount)
 
-        val currentUserPoint = userPointTable.selectById(id)
+        val currentUserPoint = userPointTable.selectById(pointRequest.userId)
+        currentUserPoint.validateMaxPointBalance(pointRequest.amount)
 
-        val saveUserPoint = userPointTable.insertOrUpdate(currentUserPoint.id, currentUserPoint.point + amount)
-        pointHistoryTable.insert(saveUserPoint.id, amount, TransactionType.CHARGE, System.currentTimeMillis())
+        val saveUserPoint = userPointTable.insertOrUpdate(currentUserPoint.id, currentUserPoint.point + pointRequest.amount)
+        pointHistoryTable.insert(saveUserPoint.id, pointRequest.amount, TransactionType.CHARGE, saveUserPoint.updateMillis)
 
         return saveUserPoint.convertDto()
     }
 
     @Synchronized
-    override fun usePoint(id: Long, amount: Long): UserPointResponse {
+    override fun usePoint(pointRequest: PointRequest): UserPointResponse {
+        val currentUserPoint = userPointTable.selectById(pointRequest.userId)
+        currentUserPoint.validateSufficientPoints(pointRequest.amount)
 
-        val currentUserPoint = userPointTable.selectById(id)
-        currentUserPoint.validateSufficientPoints(amount)
-
-        val saveUserPoint = userPointTable.insertOrUpdate(currentUserPoint.id, currentUserPoint.point - amount)
-        pointHistoryTable.insert(saveUserPoint.id, amount, TransactionType.USE, System.currentTimeMillis())
+        val saveUserPoint = userPointTable.insertOrUpdate(currentUserPoint.id, currentUserPoint.point - pointRequest.amount)
+        pointHistoryTable.insert(saveUserPoint.id, pointRequest.amount, TransactionType.USE, saveUserPoint.updateMillis)
 
         return saveUserPoint.convertDto()
     }
