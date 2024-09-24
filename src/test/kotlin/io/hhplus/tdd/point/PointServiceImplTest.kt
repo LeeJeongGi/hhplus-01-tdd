@@ -2,6 +2,7 @@ package io.hhplus.tdd.point
 
 import io.hhplus.tdd.database.PointHistoryTable
 import io.hhplus.tdd.database.UserPointTable
+import io.hhplus.tdd.point.dto.PointRequest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -84,31 +85,43 @@ class PointServiceImplTest {
 
     fun savePointTest() {
         // given
-        val id = 1L
-        val savePoint = 400L
+        val pointRequest = PointRequest(1L, 400L)
 
         // when
-        val saveUserPoint = pointServiceImpl.savePoint(id, amount = savePoint)
+        val saveUserPoint = pointServiceImpl.savePoint(pointRequest)
 
         // then
-        assertThat(saveUserPoint.id).isEqualTo(id)
-        assertThat(saveUserPoint.point).isEqualTo(savePoint)
+        assertThat(saveUserPoint.id).isEqualTo(pointRequest.userId)
+        assertThat(saveUserPoint.point).isEqualTo(pointRequest.amount)
     }
 
     @Test
     @DisplayName("포인트 저장 시 기존 포인트에 누적되는지 검증하는 테스트")
     fun savePlusPointTest() {
         // given
-        val id = 1L
-        val savePoint = 400L
-        val saveUserPoint = pointServiceImpl.savePoint(id, amount = savePoint)
+        val pointRequest = PointRequest(1L, 400L)
+        val saveUserPoint = pointServiceImpl.savePoint(pointRequest)
 
         // when
-        val curUserPoint = pointServiceImpl.savePoint(saveUserPoint.id, amount = saveUserPoint.point + 100L)
+        val curUserPoint = pointServiceImpl.savePoint(PointRequest(saveUserPoint.id, amount = saveUserPoint.point + 100L))
 
         // then
-        assertThat(curUserPoint.id).isEqualTo(id)
+        assertThat(curUserPoint.id).isEqualTo(pointRequest.userId)
         assertThat(curUserPoint.point).isEqualTo(2 * saveUserPoint.point + 100L)
+    }
+
+    @Test
+    @DisplayName("포인트 저장 실패 테스트 - 백만원 보다 넘게 가지면 안되는 포인트 정책 위반 하는 경우")
+    fun savePointOverMaxBalanceExceptionTest() {
+        // given
+        userPointTable.insertOrUpdate(1L, 999000L)
+
+        // when & then
+        val message = assertThrows<IllegalArgumentException> {
+            pointServiceImpl.savePoint(PointRequest(1L, 1001L))
+        }.message
+
+        assertThat(message).isEqualTo("최대 포인트는 1000000원입니다. 현재 포인트: 999000, 요청한 포인트: 1001")
     }
 
     @Test
@@ -119,7 +132,7 @@ class PointServiceImplTest {
 
         // when & then
         val message = assertThrows<IllegalArgumentException> {
-            pointServiceImpl.usePoint(1L, 1000L)
+            pointServiceImpl.usePoint(PointRequest(1L, 1000L))
         }.message
 
         assertThat(message).isEqualTo("사용할 수 있는 포인트가 부족합니다. 현재 포인트: 500, 요청한 포인트: 1000")
@@ -138,8 +151,8 @@ class PointServiceImplTest {
         repeat(threadCount) { i ->
             executor.execute {
                 try {
-                    pointServiceImpl.savePoint(3L, 1000L)
-                    pointServiceImpl.usePoint(3L, 500L)
+                    pointServiceImpl.savePoint(PointRequest(3L, 1000L))
+                    pointServiceImpl.usePoint(PointRequest(3L, 500L))
                 } finally {
                     latch.countDown()
                 }
