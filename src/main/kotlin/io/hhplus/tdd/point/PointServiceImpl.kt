@@ -5,12 +5,15 @@ import io.hhplus.tdd.database.UserPointTable
 import io.hhplus.tdd.point.dto.PointHistoryResponse
 import io.hhplus.tdd.point.dto.PointRequest
 import io.hhplus.tdd.point.dto.UserPointResponse
+import io.hhplus.tdd.point.handler.UserLockManager
 import org.springframework.stereotype.Service
+import kotlin.concurrent.withLock
 
 @Service
 class PointServiceImpl(
     val pointHistoryTable: PointHistoryTable,
     val userPointTable: UserPointTable,
+    val userLockManager: UserLockManager,
 ): PointService {
 
     override fun getUserPoint(id: Long): UserPointResponse {
@@ -22,27 +25,33 @@ class PointServiceImpl(
         return userPointHistory.map { it.convertDto() }
     }
 
-    @Synchronized
     override fun savePoint(pointRequest: PointRequest): UserPointResponse {
-        pointRequest.checkPointValidity(pointRequest.amount)
+        val lock = userLockManager.getLockForUser(pointRequest.userId)
 
-        val currentUserPoint = userPointTable.selectById(pointRequest.userId)
-        currentUserPoint.validateMaxPointBalance(pointRequest.amount)
+        lock.withLock {
+            pointRequest.checkPointValidity(pointRequest.amount)
 
-        val saveUserPoint = userPointTable.insertOrUpdate(currentUserPoint.id, currentUserPoint.point + pointRequest.amount)
-        pointHistoryTable.insert(saveUserPoint.id, pointRequest.amount, TransactionType.CHARGE, saveUserPoint.updateMillis)
+            val currentUserPoint = userPointTable.selectById(pointRequest.userId)
+            currentUserPoint.validateMaxPointBalance(pointRequest.amount)
 
-        return saveUserPoint.convertDto()
+            val saveUserPoint = userPointTable.insertOrUpdate(currentUserPoint.id, currentUserPoint.point + pointRequest.amount)
+            pointHistoryTable.insert(saveUserPoint.id, pointRequest.amount, TransactionType.CHARGE, saveUserPoint.updateMillis)
+
+            return saveUserPoint.convertDto()
+        }
     }
 
-    @Synchronized
     override fun usePoint(pointRequest: PointRequest): UserPointResponse {
-        val currentUserPoint = userPointTable.selectById(pointRequest.userId)
-        currentUserPoint.validateSufficientPoints(pointRequest.amount)
+        val lock = userLockManager.getLockForUser(pointRequest.userId)
 
-        val saveUserPoint = userPointTable.insertOrUpdate(currentUserPoint.id, currentUserPoint.point - pointRequest.amount)
-        pointHistoryTable.insert(saveUserPoint.id, pointRequest.amount, TransactionType.USE, saveUserPoint.updateMillis)
+        lock.withLock {
+            val currentUserPoint = userPointTable.selectById(pointRequest.userId)
+            currentUserPoint.validateSufficientPoints(pointRequest.amount)
 
-        return saveUserPoint.convertDto()
+            val saveUserPoint = userPointTable.insertOrUpdate(currentUserPoint.id, currentUserPoint.point - pointRequest.amount)
+            pointHistoryTable.insert(saveUserPoint.id, pointRequest.amount, TransactionType.USE, saveUserPoint.updateMillis)
+
+            return saveUserPoint.convertDto()
+        }
     }
 }
