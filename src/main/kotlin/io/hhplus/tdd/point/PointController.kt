@@ -1,6 +1,7 @@
 package io.hhplus.tdd.point
 
 import io.hhplus.tdd.point.dto.PointHistoryResponse
+import io.hhplus.tdd.point.dto.PointRequest
 import io.hhplus.tdd.point.dto.UserPointResponse
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -41,7 +42,7 @@ class PointController(
         @PathVariable id: Long,
         @RequestBody amount: Long,
     ): UserPointResponse {
-        return pointService.savePoint(id, amount)
+        return pointService.savePoint(PointRequest(id, amount))
     }
 
     /**
@@ -52,6 +53,6 @@ class PointController(
         @PathVariable id: Long,
         @RequestBody amount: Long,
     ): UserPointResponse {
-        return pointService.usePoint(id, amount)
+        return pointService.usePoint(PointRequest(id, amount))
     }
 }
