@@ -1,7 +1,8 @@
-package io.hhplus.tdd.point
+package io.hhplus.tdd.point.dto
 
-data class UserPoint(
+data class UserPointResponse(
     val id: Long,
     val point: Long,
     val updateMillis: Long,
-)
+) {
+}

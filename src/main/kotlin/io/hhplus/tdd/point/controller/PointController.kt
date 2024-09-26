@@ -1,12 +1,18 @@
-package io.hhplus.tdd.point
+package io.hhplus.tdd.point.controller
 
+import io.hhplus.tdd.point.dto.PointHistoryResponse
+import io.hhplus.tdd.point.dto.UserPointResponse
+import io.hhplus.tdd.point.service.PointService
+import io.hhplus.tdd.point.service.domain.UserPoint
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/point")
-class PointController {
+class PointController(
+    val pointService: PointService
+) {
     private val logger: Logger = LoggerFactory.getLogger(javaClass)
 
     /**
@@ -15,8 +21,8 @@ class PointController {
     @GetMapping("{id}")
     fun point(
         @PathVariable id: Long,
-    ): UserPoint {
-        return UserPoint(0, 0, 0)
+    ): UserPointResponse {
+        return pointService.getUserPoint(id).convertDto()
     }
 
     /**
@@ -25,8 +31,9 @@ class PointController {
     @GetMapping("{id}/histories")
     fun history(
         @PathVariable id: Long,
-    ): List<PointHistory> {
-        return emptyList()
+    ): List<PointHistoryResponse> {
+        val userPointHistory = pointService.getUserPointHistory(id)
+        return userPointHistory.map { it.convertDto() }
     }
 
     /**
@@ -36,8 +43,8 @@ class PointController {
     fun charge(
         @PathVariable id: Long,
         @RequestBody amount: Long,
-    ): UserPoint {
-        return UserPoint(0, 0, 0)
+    ): UserPointResponse {
+        return pointService.savePoint(UserPoint.of(id, amount)).convertDto()
     }
 
     /**
@@ -47,7 +54,7 @@ class PointController {
     fun use(
         @PathVariable id: Long,
         @RequestBody amount: Long,
-    ): UserPoint {
-        return UserPoint(0, 0, 0)
+    ): UserPointResponse {
+        return pointService.usePoint(UserPoint.of(id, amount)).convertDto()
     }
 }
