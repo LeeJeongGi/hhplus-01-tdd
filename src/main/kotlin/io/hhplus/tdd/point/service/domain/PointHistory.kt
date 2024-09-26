@@ -1,4 +1,4 @@
-package io.hhplus.tdd.point
+package io.hhplus.tdd.point.service.domain
 
 import io.hhplus.tdd.point.dto.PointHistoryResponse
 
