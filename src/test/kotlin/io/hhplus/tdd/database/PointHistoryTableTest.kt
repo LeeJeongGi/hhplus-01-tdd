@@ -1,6 +1,6 @@
 package io.hhplus.tdd.database
 
-import io.hhplus.tdd.point.TransactionType
+import io.hhplus.tdd.point.service.domain.TransactionType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
