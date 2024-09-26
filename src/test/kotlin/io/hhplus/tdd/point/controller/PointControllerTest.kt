@@ -1,4 +1,4 @@
-package io.hhplus.tdd.point
+package io.hhplus.tdd.point.controller
 
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
