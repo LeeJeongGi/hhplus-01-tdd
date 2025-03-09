@@ -10,9 +10,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
+import java.time.Duration
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 @SpringBootTest
 class PointServiceImplTest {
@@ -119,7 +122,7 @@ class PointServiceImplTest {
         val userId = 1L
         val initialAmount = 1000L
         val requestAmount1 = 500L
-        val requestAmount2 = 300L
+        val requestAmount2 = 1200L
 
         // 포인트 초기 상태 설정
         pointService.savePoint(UserPoint.of(userId, initialAmount))
@@ -147,11 +150,72 @@ class PointServiceImplTest {
         assertThat(userPointHistory[1].amount).isEqualTo(500L)
         assertThat(userPointHistory[1].type).isEqualTo(TransactionType.CHARGE)
 
-        assertThat(userPointHistory[2].amount).isEqualTo(300L)
+        assertThat(userPointHistory[2].amount).isEqualTo(1200L)
         assertThat(userPointHistory[2].type).isEqualTo(TransactionType.USE)
 
         // 실행 중인 스레드 풀 종료
         executor.shutdown()
         executor.awaitTermination(5, TimeUnit.SECONDS)
     }
+    
+    @Test
+    fun test() {
+        val future = CompletableFuture.supplyAsync {
+            Thread.sleep(1000) // 1초 동안 대기 (실제 비동기 작업을 가정)
+            "Hello, CompletableFuture!"
+        }
+
+        println(future.get()) // get()을 호출하면 결과가 반환될 때까지 대기
+    }
+
+    @Test
+    @DisplayName("잔액 충전 동시성 테스트 - 동시에 10번 충전 요청이 왔을 때 정상적으로 10번 충전 되는지 확인.")
+    fun executeSequentiallyOnConcurrentUsage2() {
+        // given
+        val userId = 1L
+        val initialAmount = 1000L
+        val requestAmount1 = 100L
+
+        // 포인트 초기 상태 설정
+        pointService.savePoint(UserPoint.of(userId, initialAmount))
+
+        val executor = Executors.newFixedThreadPool(1000)
+        val successCount = AtomicInteger()
+        val failCount = AtomicInteger()
+
+        val startTime = System.nanoTime()
+
+        val latch1 = CountDownLatch(10)
+        try {
+            repeat(10) {
+                executor.submit {
+                    try {
+                        pointService.savePoint(UserPoint.of(userId, requestAmount1))
+                        successCount.incrementAndGet()
+                    } catch (e: Exception) {
+                        failCount.incrementAndGet()
+                    } finally {
+                        latch1.countDown()
+                    }
+                }
+            }
+        } finally {
+            executor.shutdown()
+        }
+
+        latch1.await() // 첫 번째 요청이 끝날 때까지 대기
+
+        val endTime = System.nanoTime()
+        val duration = Duration.ofNanos(endTime - startTime)
+
+        // then
+        val finalPoint = pointService.getUserPoint(userId)
+        assertThat(finalPoint.point).isEqualTo(initialAmount + requestAmount1 * 10)
+
+        println("🕒 테스트 실행 시간: ${duration.toMillis()} 밀리초")
+        println("✅ 성공한 요청 횟수: $successCount")
+        println("❌ 실패한 요청 횟수: $failCount")
+        println("💰 최종 잔액: ${finalPoint.point}")
+    }
+
 }
